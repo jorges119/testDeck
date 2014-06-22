@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Test deck</title>
+  <title>Cycle Time Measurement based on Productions Logs</title>
   <meta charset="utf-8">
-  <meta name="description" content="Test deck">
-  <meta name="author" content="">
+  <meta name="description" content="Cycle Time Measurement based on Productions Logs">
+  <meta name="author" content="Jorge Hermoso">
   <meta name="generator" content="slidify" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta http-equiv="X-UA-Compatible" content="chrome=1">
@@ -32,25 +32,33 @@
     <!-- LOGO SLIDE -->
         <slide class="title-slide segue nobackground">
   <hgroup class="auto-fadein">
-    <h1>Test deck</h1>
-    <h2></h2>
-    <p><br/></p>
+    <h1>Cycle Time Measurement based on Productions Logs</h1>
+    <h2>Method proposed</h2>
+    <p>Jorge Hermoso<br/>Analyst</p>
   </hgroup>
   <article></article>  
 </slide>
     
 
     <!-- SLIDES -->
-    <slide class="" id="slide-1" style="background:;">
+    <slide class="class" id="id" style="background:;">
   <hgroup>
-    <h2>Read-And-Delete</h2>
+    <h2>Current methods and issues</h2>
   </hgroup>
   <article data-timings="">
-    <ol>
-<li>Edit YAML front matter</li>
-<li>Write using R Markdown</li>
-<li>Use an empty line followed by three dashes to separate slides!</li>
+    <p>To obtain and accurate measure of the cycle time it is necessary to divide the number of parts by a unit of time, but the resulting values is only significant for production estimation while remains completely useless for production modeling as it masks the real capacity of the cells.</p>
+
+<p>The main problem is that to obtain a significant measure on CT the calculations need to automatically cope with a few elements:</p>
+
+<ol>
+<li>Big delays produced by machine time down</li>
+<li>Small runs of protype series</li>
+<li>Inefficiency of operators to feed machine</li>
+<li>Others</li>
 </ol>
+
+<p>In order to get an automatic value of the process time the calculation algorithm needs to account for all these factors.</p>
+
 
   </article>
   <!-- Presenter Notes -->
@@ -58,14 +66,102 @@
 
 <slide class="class" id="id" style="background:;">
   <hgroup>
-    <h2>Slide 2</h2>
+    <h2>Processing I</h2>
   </hgroup>
   <article data-timings="">
-    <pre><code class="r">plot(1:10, 1:10)
+    <p>Assuming the data in a proper timestamp format the first step is to filter by Pass result:</p>
+
+<pre><code class="r">clean &lt;- data[data$result == &quot;1&quot;, ]  #1 stands for pass in the results
 </code></pre>
 
-<p><img src="assets/fig/unnamed-chunk-1.png" alt="plot of chunk unnamed-chunk-1"> </p>
+<p>Then calculate time intervals</p>
 
+<pre><code class="r">ct &lt;- diff(strptime(clean$timestamp, &quot;%H:%M:%S&quot;))
+</code></pre>
+
+<p>And have a first galnce to the data:</p>
+
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##  -35900      43      46     -22      49    6370
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-3" style="background:;">
+  <hgroup>
+    <h2>Processing II</h2>
+  </hgroup>
+  <article data-timings="">
+    
+<div style='float:left;width:48%;' class='centered'>
+  <p>Let&#39;s get rid of the first level of noise by cutting on the median with a span of +/- 2 sigma</p>
+
+<pre><code class="r">ct1 &lt;- as.numeric(ct)
+ct1 &lt;- ct1[ct1 &lt; (median(ct1) + sd(ct1) * 2) &amp; ct1 &gt; (median(ct1) - sd(ct1) * 
+    2)]
+</code></pre>
+
+<p>Now that we got rid of all the machine stops it is possible to evaluate the amount of variaton in a regular proces.</p>
+
+</div>
+<div style='float:right;width:48%;'>
+  <p><img src="assets/fig/unnamed-chunk-6.png" alt="plot of chunk unnamed-chunk-6"> </p>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-4" style="background:;">
+  <hgroup>
+    <h2>Processing II</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>Let&#39;s filter this data by using a moving average filter</p>
+
+<div style='float:left;width:48%;' class='centered'>
+  <pre><code class="r">ma5 = c(1, 1, 1, 1, 1)/5
+ct2 &lt;- as.numeric(filter(ct1, ma5))
+ct2 &lt;- ct2[!is.na(ct2)]
+</code></pre>
+
+</div>
+<div style='float:right;width:48%;'>
+  <p><img src="assets/fig/unnamed-chunk-8.png" alt="plot of chunk unnamed-chunk-8"> </p>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-5" style="background:;">
+  <hgroup>
+    <h2>Processing III</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>Finally let&#39;s recalculate the median on the filtered data and give a threshold of two sigma again. </p>
+
+<div style='float:left;width:48%;' class='centered'>
+  <pre><code class="r">ct3 &lt;- ct2[ct2 &lt; (median(ct2) + sd(ct2) * 2) &amp; ct2 &gt; (median(ct2) - sd(ct2) * 
+    2)]
+summary(ct3)
+</code></pre>
+
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##    42.2    44.8    46.9    51.6    51.0   178.0
+</code></pre>
+
+<p>We can conclude that our process has a stable CT of 46.90s</p>
+
+<p>The value of the mean is now more representative as well compared to the -22 second at the beginning of the study.</p>
+
+</div>
+<div style='float:right;width:48%;'>
+  <p><img src="assets/fig/unnamed-chunk-10.png" alt="plot of chunk unnamed-chunk-10"> </p>
+
+</div>
   </article>
   <!-- Presenter Notes -->
 </slide>
@@ -76,14 +172,32 @@
     <ul>
       <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=1 title='Read-And-Delete'>
+        data-slide=1 title='Current methods and issues'>
          1
       </a>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=2 title='Slide 2'>
+        data-slide=2 title='Processing I'>
          2
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=3 title='Processing II'>
+         3
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=4 title='Processing II'>
+         4
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=5 title='Processing III'>
+         5
       </a>
     </li>
   </ul>
